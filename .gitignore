@@ -14,5 +14,5 @@ target
 out
 
 # Ignore jars
-*.jar
+libs
 /libs/

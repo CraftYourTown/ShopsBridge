@@ -7,6 +7,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import uk.mangostudios.adminshop.AdminShopPlugin;
+import uk.mangostudios.adminshop.config.impl.Category;
 import uk.mangostudios.adminshop.config.impl.ShopItem;
 import uk.mangostudios.adminshop.util.MaterialUtil;
 
@@ -31,7 +32,7 @@ public class ShopsBridge_MangoAdminShop implements PricesAccessorNoTransactions,
 
     @Override
     public BigDecimal getSellPriceInternal(ItemStack itemStack) {
-        return getPrice(findShopItem(itemStack), false, itemStack);
+        return getPrice(findShopItem(itemStack, false), false, itemStack);
     }
 
     @Override
@@ -41,7 +42,7 @@ public class ShopsBridge_MangoAdminShop implements PricesAccessorNoTransactions,
 
     @Override
     public BigDecimal getBuyPriceInternal(ItemStack itemStack) {
-        return getPrice(findShopItem(itemStack), true, itemStack);
+        return getPrice(findShopItem(itemStack, true), true, itemStack);
     }
 
     @Override
@@ -54,21 +55,28 @@ public class ShopsBridge_MangoAdminShop implements PricesAccessorNoTransactions,
         return new BulkTransactionImpl();
     }
 
-    private ShopItem findShopItem(ItemStack itemStack) {
-        for (Map.Entry<String, ShopItem> entry : this.adminShop.getAllItems().entrySet()) {
-            ShopItem shopItem = entry.getValue();
-            if (!shopItem.enabled())
-                continue;
+    private ShopItem findShopItem(ItemStack itemStack, boolean buy) {
+        ShopItem bestItem = null;
+        double bestPrice = 0;
+        for (Category category : this.adminShop.getCategories()) {
+            for (Map.Entry<String, ShopItem> entry : category.getItems().entrySet()) {
+                ShopItem shopItem = entry.getValue();
+                double price = buy ? shopItem.buyPrice() : shopItem.sellPrice();
+                if (!shopItem.enabled() || price == -1)
+                    continue;
 
-            ItemStack configuredItem = MaterialUtil.get(entry.getKey());
-            if (configuredItem.getType() != itemStack.getType())
-                continue;
+                ItemStack configuredItem = MaterialUtil.get(entry.getKey());
+                if (!configuredItem.isSimilar(itemStack))
+                    continue;
 
-            if (configuredItem.isSimilar(itemStack))
-                return shopItem;
+                if (bestItem == null || (buy ? price < bestPrice : price > bestPrice)) {
+                    bestItem = shopItem;
+                    bestPrice = price;
+                }
+            }
         }
 
-        return null;
+        return bestItem;
     }
 
     private static BigDecimal getPrice(ShopItem shopItem, boolean buy, ItemStack itemStack) {
@@ -81,7 +89,8 @@ public class ShopsBridge_MangoAdminShop implements PricesAccessorNoTransactions,
 
     private class BulkTransactionImpl implements PricesAccessorNoTransactions, BulkTransaction {
 
-        private final ItemStackCache<ShopItem> cache = new ItemStackCache<>();
+        private final ItemStackCache<ShopItem> sellCache = new ItemStackCache<>();
+        private final ItemStackCache<ShopItem> buyCache = new ItemStackCache<>();
 
         @Override
         public BigDecimal getSellPriceInternal(OfflinePlayer unused, ItemStack itemStack) {
@@ -90,7 +99,7 @@ public class ShopsBridge_MangoAdminShop implements PricesAccessorNoTransactions,
 
         @Override
         public BigDecimal getSellPriceInternal(ItemStack itemStack) {
-            return getPrice(this.cache.computeIfAbsent(itemStack, () -> findShopItem(itemStack)), false, itemStack);
+            return getPrice(this.sellCache.computeIfAbsent(itemStack, () -> findShopItem(itemStack, false)), false, itemStack);
         }
 
         @Override
@@ -100,7 +109,7 @@ public class ShopsBridge_MangoAdminShop implements PricesAccessorNoTransactions,
 
         @Override
         public BigDecimal getBuyPriceInternal(ItemStack itemStack) {
-            return getPrice(this.cache.computeIfAbsent(itemStack, () -> findShopItem(itemStack)), true, itemStack);
+            return getPrice(this.buyCache.computeIfAbsent(itemStack, () -> findShopItem(itemStack, true)), true, itemStack);
         }
 
     }
