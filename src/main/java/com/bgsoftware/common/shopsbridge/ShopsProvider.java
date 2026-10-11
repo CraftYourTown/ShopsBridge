@@ -32,6 +32,15 @@ public enum ShopsProvider {
         }
     },
 
+    MANGO_ADMINSHOP("mango-adminshop", null) {
+        @Override
+        protected IShopsBridge createInstanceInternal(Plugin plugin) throws Exception {
+            Class<?> mangoAdminShopClass = Class.forName("com.bgsoftware.common.shopsbridge.ShopsBridge_MangoAdminShop");
+            Constructor<?> constructor = mangoAdminShopClass.getConstructor(Plugin.class);
+            return (IShopsBridge) constructor.newInstance(plugin);
+        }
+    },
+
     EXCELLENTSHOP("ExcellentShop", null) {
         @Override
         protected IShopsBridge createInstanceInternal(Plugin plugin) throws Exception {

@@ -1,0 +1,11 @@
+group 'Hooks:MangoAdminShop'
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+dependencies {
+    compileOnly files('../../libs/mango-adminshop.jar')
+}
